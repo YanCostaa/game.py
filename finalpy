@@ -1,0 +1,147 @@
+import pygame
+import sqlite3
+from random import randint
+
+# Configurações gerais do jogo
+SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
+FPS = 60
+LEVEL_DURATION = 20  # duração base de cada nível (em segundos)
+
+pygame.init()
+screen = pygame.disaplay.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Mountain Shooter")
+clock = pygame.time.Clock()
+
+# Carregar recursos
+background1 = pygame.image.load("background1.png").convert()
+background2 = pygame.image.load("background2.png").convert()
+background3 = pygame.image.load("background3.png").convert()
+background_music3 = "level3_music.mp3"
+
+# Carregar assets do Enemy3
+enemy3_image = pygame.image.load("enemy3.png").convert_alpha()
+projectile_image = pygame.image.load("enemy3_projectile.png").convert_alpha()
+
+# Classes principais
+class Enemy3(pygame.sprite.Sprite):
+    def __init__(self, x, y, speed_x, speed_y):
+        super().__init__()
+        self.image = enemy3_image
+        self.rect = self.image.get_rect(topleft=(x, y))
+        self.speed_x = speed_x
+        self.speed_y = speed_y
+        self.direction_y = 1  # 1 para descer, -1 para subir
+
+    def update(self):
+        # Movimento horizontal
+        self.rect.x -= self.speed_x
+
+        # Movimento vertical com comportamento especial
+        self.rect.y += self.speed_y * self.direction_y
+        if self.rect.top <= 0:
+            self.direction_y = 1
+            self.speed_y *= 2  # Dobra a velocidade ao descer
+        elif self.rect.bottom >= SCREEN_HEIGHT:
+            self.direction_y = -1
+
+        # Remover o inimigo se sair da tela
+        if self.rect.right < 0:
+            self.kill()
+
+    def shoot(self):
+        if randint(0, 100) < 5:  # 5% de chance de atirar por frame
+            projectile = EnemyProjectile(self.rect.centerx, self.rect.centery)
+            all_sprites.add(projectile)
+            enemy_projectiles.add(projectile)
+
+class EnemyProjectile(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = projectile_image
+        self.rect = self.image.get_rect(center=(x, y))
+        self.speed_y = 5
+
+    def update(self):
+        self.rect.y += self.speed_y
+        if self.rect.top > SCREEN_HEIGHT:
+            self.kill()
+
+# Funções auxiliares
+def draw_background(background, scroll):
+    for i in range(2):
+        screen.blit(background, (i * SCREEN_WIDTH - scroll, 0))
+
+def run_level(level, duration, background, spawn_enemy_callback):
+    pygame.mixer.music.load(background_music3)
+    pygame.mixer.music.play(-1)
+
+    running = True
+    timer = duration * 1000  # em milissegundos
+    start_ticks = pygame.time.get_ticks()
+
+    scroll = 0
+    scroll_speed = 2
+
+    while running:
+        elapsed_time = pygame.time.get_ticks() - start_ticks
+        if elapsed_time >= timer:
+            break
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+        screen.fill((0, 0, 0))
+
+        # Atualizar fundo com parallax
+        scroll = (scroll + scroll_speed) % SCREEN_WIDTH
+        draw_background(background, scroll)
+
+        # Spawning de inimigos
+        if randint(0, 100) < 2:  # Chance de spawn
+            x = SCREEN_WIDTH + 20
+            y = randint(50, SCREEN_HEIGHT - 50)
+            enemy = Enemy3(x, y, 3, 2)
+            all_sprites.add(enemy)
+            enemies.add(enemy)
+
+        all_sprites.update()
+        all_sprites.draw(screen)
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+# Inicialização de grupos de sprites
+all_sprites = pygame.sprite.Group()
+enemies = pygame.sprite.Group()
+enemy_projectiles = pygame.sprite.Group()
+
+# Menu
+my_name = "Yan Felipe Costa da Silva"
+my_ru = "4551528"
+def show_menu():
+    running = True
+    while running:
+        screen.fill((0, 0, 0))
+        font = pygame.font.Font(None, 36)
+        text = font.render(f"{my_name} - {my_ru}", True, (255, 255, 255))
+
+        # Desenhar o texto no canto superior esquerdo
+        screen.blit(text, (10, 10))
+
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                running = False
+
+# Execução do jogo
+show_menu()
+run_level(1, LEVEL_DURATION, background1, None)
+run_level(2, LEVEL_DURATION, background2, None)
+run_level(3, LEVEL_DURATION * 2, background3, None)
+
+pygame.quit()
